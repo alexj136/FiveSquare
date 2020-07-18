@@ -1,27 +1,28 @@
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.HashSet;
 import java.util.Set;
-public class FiveSquare {
+public class AvoidTheSquare {
     public static final int GRID_SIZE = 5;
     public static final int GRID_TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
     public static void main(String[] args) {
-        /*
+        int checked = 0;
+        int solutions = 0;
         Grid grid = new Grid();
-        grid.set(index(0            , 0            ), Cell.BROWN);
-        grid.set(index(0            , GRID_SIZE - 1), Cell.BROWN);
-        grid.set(index(GRID_SIZE - 1, 0            ), Cell.BROWN);
-        grid.set(index(GRID_SIZE - 1, GRID_SIZE - 1), Cell.BROWN);
-        System.out.println(grid);
-        Set<Index[]> squares = grid.computeSquares();
-        for (Index[] square : squares) {
-            System.out.print("[ ");
-            for (Index index : square)
-                System.out.print(index + " ");
-            System.out.println(']');
+        for (int i = 0; i < Math.pow(2, GRID_TOTAL_CELLS); i++) {
+            grid.inc();
+            Set<Index[]> squares = grid.computeSquares(true);
+            if (squares.isEmpty()) {
+                System.out.println(grid);
+                solutions++;
+            }
+            if (checked % 1000000 == 0) {
+                System.out.println("Checked " + checked + " grids.");
+            }
+            checked++;
         }
-        */
-        drawSearch();
+        System.out.println("Total solutions: " + solutions);
     }
     public static class Index {
         public final int row, col;
@@ -50,9 +51,6 @@ public class FiveSquare {
         }
         public static Index turn(int idx, Index other) {
             return new Index(idx).turn(other);
-        }
-        public static Index turn(int idx, int other) {
-            return Index.turn(idx, new Index(other));
         }
         public boolean inBounds() {
             return row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE;
@@ -85,57 +83,50 @@ public class FiveSquare {
     public static int idx(int row, int col) {
         return GRID_SIZE * row + col;
     }
-    public enum Cell {
-        EMPTY, BROWN, GREEN;
-        public String toString() {
-            switch (this) {
-                case EMPTY: return "  ";
-                case BROWN: return "RR";
-                case GREEN: return "GG";
-            }
-            throw new IllegalStateException("Invalid Cell");
-        }
-    }
     public static class Grid {
-        private final Cell[] cells;
-        public Cell[] getCells() { return cells; }
+        private BitSet cells;
+        public BitSet getCells() { return cells; }
         public String toString() {
             StringBuilder builder = new StringBuilder();
             for (int r = 0; r < GRID_SIZE; r++) {
                 for (int c = 0; c < GRID_SIZE; c++) {
-                    builder.append(cells[idx(r, c)] + " ");
+                    builder.append((cells.get(idx(r, c)) ? "RR" : "GG") + " ");
                 }
                 builder.append('\n');
             }
             return builder.toString();
         }
-        public Grid() {
-            this.cells = new Cell[GRID_SIZE * GRID_SIZE];
-            for (int i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
-                cells[i] = Cell.EMPTY;
-            }
-        }
-        public Grid(Cell[] cells) { this.cells = cells; }
-        public Cell get(int index) { return this.cells[index]; }
-        public Cell get(Index index) { return this.cells[idx(index)]; }
-        public void set(int index, Cell cell) { this.cells[index] = cell; }
-        public void set(Index index, Cell cell) {
-            this.cells[idx(index)] = cell;
-        }
-        public Grid with(int index, Cell cell) {
+        public Grid() { this.cells = new BitSet(GRID_TOTAL_CELLS); }
+        public Grid(BitSet cells) { this.cells = cells; }
+        public boolean get(int index) { return cells.get(index); }
+        public boolean get(Index index) { return cells.get(idx(index)); }
+        public void set(int index, boolean cell) { cells.set(index, cell); }
+        public void set(Index index, boolean cell) { set(idx(index), cell); }
+        public Grid with(int index, boolean cell) {
             set(index, cell);
             return this;
         }
-        private boolean inBoundsWithType(IndexPair indexes, Cell type) {
+        private boolean inBoundsWithType(IndexPair indexes, boolean type) {
             return indexes != null && indexes.bothInBounds()
-                && cells[idx(indexes.fst)] == type
-                && cells[idx(indexes.snd)] == type;
+                && cells.get(idx(indexes.fst)) == type
+                && cells.get(idx(indexes.snd)) == type;
+        }
+        public void inc() {
+            do { inc(0); }
+            while (cells.cardinality() != GRID_TOTAL_CELLS / 2);
+        }
+        public void inc(int index) {
+            if(!cells.get(index)) cells.set(index);
+            else {
+                cells.set(index, false);
+                inc(index + 1);
+            }
         }
         public Set<Index[]> computeSquares() { return computeSquares(false); }
         public Set<Index[]> computeSquares(boolean returnFirstOnly) {
             Set<Index[]> squares = new HashSet<>();
-            for (Cell cellType : Cell.values()) {
-                if (cellType == Cell.EMPTY) continue;
+            for (int color = 0; color <= 1; color++) {
+                boolean cellType = color == 0;
                 for (int idxA = 0; idxA < GRID_TOTAL_CELLS; idxA++) {
                     if (get(idxA) != cellType) continue;
                     for (int idxB = idxA + 1; idxB < GRID_TOTAL_CELLS; idxB++) {
@@ -159,49 +150,5 @@ public class FiveSquare {
             }
             return squares;
         }
-        @Override
-        public int hashCode() { return cells.hashCode(); }
-        @Override
-        public boolean equals(Object other) {
-            return other instanceof Grid &&
-                Arrays.equals(cells, ((Grid) other).getCells());
-        }
-        public ArrayList<Grid> daughters() {
-            ArrayList<Grid> daughters = new ArrayList<>();
-            for (int idx = 0; idx < cells.length; idx++) {
-                if (cells[idx] != Cell.EMPTY) continue;
-                for (Cell newToken : Cell.values()) {
-                    if (newToken == Cell.EMPTY) continue;
-                    daughters.add(new Grid(Arrays.copyOf(cells, cells.length))
-                            .with(idx, newToken));
-                }
-            }
-            return daughters;
-        }
     }
-    public static /*HashSet<Grid>*/void drawSearch() {
-        int checked = 0;
-        //HashSet<Grid> solutions = new HashSet<>();
-        ArrayList<Grid> todo = new ArrayList<>();
-        todo.add(new Grid());
-        while (!todo.isEmpty()) {
-            Grid current = todo.remove(todo.size() - 1);
-            Set<Index[]> squares = current.computeSquares(true);
-            if (!squares.isEmpty()) continue;
-            ArrayList<Grid> daughters = current.daughters();
-            if (daughters.isEmpty()) System.out.println(current);//solutions.add(current);
-            else todo.addAll(daughters);
-            checked++;
-            if (checked > 999999) {
-                checked = 0;
-                System.out.print(".");
-            }
-        }
-        System.out.println();
-        //return solutions;
-    }
-    // Right now we're checking unfinished games, which is unnecessary.
-    // We can simplify the grid to an (equivalent of an) array of booleans with 
-    // 13 trues and 12 falses. Then we have far fewer states to check, and each
-    // state is more compact - we can get a state into an int32.
 }
