@@ -3,6 +3,8 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashSet;
 import java.util.Set;
+// Matt Parker's Maths Puzzles, week 10: Avoid the Square
+// https://www.think-maths.co.uk/avoidthesquare
 public class AvoidTheSquare {
     public static final int GRID_SIZE = 5;
     public static final int GRID_TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
